@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up{% endblock %}
+
+{% load static %}
+
+{% block js %}
+<!-- js script-->
+<script>
+    $(document).ready(function () {
+        $('#signup-form').submit(function (event) {
+            if ($('#id_password_confirm').val() != $('#id_password').val()) {
+                $('#id_password').addClass('is-invalid')
+                $("#id_password").attr('title', 'The password is not the same');
+                $("#id_password").attr('data-placement', 'right');
+                $('#id_password').tooltip('show')
+                $('#id_password_confirm').addClass('is-invalid')
+                event.preventDefault();
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+You should not be here
+{% else%}
+<h1 class="d-flex justify-content-center">Sign Up</h1>
+<div class="d-flex justify-content-center">
+    <form id='signup-form' method="post" style='width:30%'>{% csrf_token %}
+        {{ form.username }}
+        {{ form.password }}
+        {{ form.password_confirm }}
+        {{ form.last_name }}
+        <input type="submit" value="Submit" class="btn btn-primary" />
+    </form>
+</div>
+{% endif %}
+{% endblock %}

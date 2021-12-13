@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Create Pet{% endblock %}
+
+{% load static %}
+
+{% block js %}
+<!-- js script-->
+<script>
+    $(document).ready(function () {
+        $('#id_birth').attr('type', 'date')
+
+        $('#id_color').append(new Option('New Color',
+            $('#id_color option:first-child').attr('value')))
+        $('#id_type').append(new Option('New Type',
+            $('#id_type option:first-child').attr('value')))
+
+        $('#id_new_color').hide()
+        $('#id_new_color').attr("placeholder", "Please Input the New Color")
+        $('#id_new_type').hide()
+        $('#id_new_type').attr("placeholder", "Please Input New Type")
+
+        $('#id_color').change(function () {
+            new_field_control('#id_color', '#id_new_color')
+        })
+
+        $('#id_type').change(function () {
+            new_field_control('#id_type', '#id_new_type')
+        })
+
+        $('#create-pet-form').submit(function (event) {
+            update_new_field('#id_color', '#id_new_color')
+            update_new_field('#id_type', '#id_new_type')
+        });
+    });
+
+    function new_field_control(select_id, new_feild_id) {
+        if ($(select_id).children().length == ($(select_id).prop('selectedIndex') + 1)) {
+            $(new_feild_id).prop('required', true);
+            $(new_feild_id).show()
+        } else {
+            $(new_feild_id).prop('required', false);
+            $(new_feild_id).hide()
+        }
+    }
+
+    function update_new_field(select_id, new_feild_id) {
+        if ($(select_id).children().length == ($(select_id).prop('selectedIndex') + 1)) {
+            $(new_feild_id).attr('value', '')
+        }
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+{% if request.user.is_staff %}
+<h1 class="d-flex justify-content-center">Pet Create</h1>
+<div class="d-flex justify-content-center">
+    <form id='create-pet-form' enctype="multipart/form-data" method="post" style='width:30%'>{% csrf_token %}
+        <div class="form-group">
+            <label>Pet Name</label>
+            {{ form.name }}
+        </div>
+        <div class="form-group">
+            <label>Birth</label>
+            {{ form.birth }}
+        </div>
+        <div class="form-group">
+            <label>Gender</label>
+            {{ form.gender }}
+        </div>
+        <div class="form-group">
+            <label>Weight</label>
+            {{ form.weight }}
+        </div>
+        <div class="form-group">
+            <label>Color</label>
+            {{ form.color }}
+            {{ form.new_color }}
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            {{ form.description }}
+        </div>
+        <div class="form-group">
+            <label>Type</label>
+            {{ form.type }}
+            {{ form.new_type }}
+        </div>
+        <div class="form-group">
+            <label>Image</label>
+            {{ form.image }}
+        </div>
+        <input type="submit" class="btn btn-primary" value="Submit" />
+    </form>
+</div>
+{% else%}
+You should not be here
+{% endif %}
+{% endblock %}

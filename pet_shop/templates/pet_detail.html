@@ -1,0 +1,521 @@
+{% extends "base.html" %}
+{% load static %}
+{% load pet_shop_extras %}
+{% block title %}{{ pet.name }}{% endblock %}
+
+
+
+{% block js %}
+
+{% comment %} Only for staff {% endcomment %}
+{% if request.user.is_staff %}
+<script>
+    $(document).ready(function () {
+
+        ///////////////////////////////////////////////////
+        //ajax update the pet info
+        var target_obj = null;
+        $('.modifiable').dblclick(function () {
+            if (!$(this).hasClass('modifing')) {
+                $(this).attr('class', 'modifing')
+                target_obj = $(this)
+                let text = $(this).text()
+                let ele = ''
+                switch ($(this).attr('id')) {
+                    case 'update_name':
+                        ele =
+                            `<input type="text" value="${text}" class="modifing form-control" maxlength="20" />`
+                        break
+                    case 'update_weight':
+                        text = text.replace(' kg', '')
+                        ele =
+                            `<input type="number" value="${text}" step="0.01" class="modifing form-control" />`
+                        break
+                    case 'update_description':
+                        ele =
+                            `<textarea class="form-control modifing" maxlength="200" rows="3">${text}</textarea>`
+                        break
+                }
+                $(this).html(ele)
+                $(this).children().focus()
+            }
+        })
+
+        $('.pet-info').click(function (e) {
+            if (!$(e.target).hasClass('modifing') && target_obj != null) {
+                target_obj = ajax_update_data(target_obj)
+            }
+        })
+        ///////////////////////////////////////////////////
+        //create new vaccine record
+        $('#btn_new_vaccine').click(function (e) {
+            ajax_pet_vaccine_create()
+        })
+
+        ///////////////////////////////////////////////////
+        //vaccine record delete
+        $('.vaccine_delete').click(function () {
+            let yes = confirm("Delete Vaccine Record?");
+            if (yes == true) {
+                ajax_pet_vaccine_delete($(this).closest("tr"))
+            }
+        })
+        ///////////////////////////////////////////////////
+        //create new vaccine
+        $("#btn_vaccine_create").click(function () {
+            ajax_vaccine_create()
+        })
+
+        ///////////////////////////////////////////////////
+        //Adopter control
+        $("#btn_adopter_control").click(function () {
+            ajax_adopter_control()
+        })
+        update_adopt_status_text("{{ pet.adopt }}")
+    });
+
+    function ajax_update_data(target_obj) {
+        let text = target_obj.children().val()
+        let field = ''
+        switch (target_obj.attr('id')) {
+            case 'update_name':
+                field = 'name'
+                break
+            case 'update_weight':
+                field = 'weight'
+                break
+            case 'update_description':
+                field = 'description'
+                break
+        }
+        $.ajax({
+            url: "{% url 'pet_shop:ajax-pet-update' %}",
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            datatype: 'json',
+            data: {
+                'id': "{{ pet.id }}",
+                'field': field,
+                'text': text
+            },
+            success: function (arg) {}
+        });
+        if (target_obj.attr('id') == 'update_weight') {
+            text += ' kg'
+        }
+        target_obj.html(text)
+        target_obj.attr('class', 'modifiable')
+        return null
+    }
+
+    function ajax_pet_vaccine_create() {
+        let type_val = $('#vaccine_type').val()
+        let type_text = $('#vaccine_type').find('option:selected').text()
+        let description = $('#vaccine_description').val()
+        let date = $('#vaccine_date').val()
+
+        if (description == "" || date == "") {
+            alert("Please fill all data");
+            return
+        }
+
+        $.ajax({
+            url: "{% url 'pet_shop:ajax-pet-vaccine-create' %}",
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            datatype: 'json',
+            data: {
+                'id': "{{ pet.id }}",
+                'type': type_val,
+                'description': description,
+                'date': date,
+            },
+            success: function (arg) {
+                $(".vaccine-tr:first").clone(true).removeClass("d-none").insertAfter(
+                    ".vaccine-tr:last");
+                $(".vaccine-tr:last .hidden_id").val(arg['id'])
+                $(".vaccine-tr:last .vaccine_type").text(type_text)
+                $(".vaccine-tr:last .vaccine_description").text(description)
+                $(".vaccine-tr:last .vaccine_date span").text(date)
+                let idx = $(".vaccine-tr:not(.d-none)").length
+                if (idx == '') {
+                    idx = 1
+                }
+                console.log(idx)
+                $(".vaccine-tr:last .vaccine_count span").text(idx)
+                $('#tr_vaccine_create input').val('')
+            }
+        });
+    }
+
+    function ajax_pet_vaccine_delete(target_tr_obj) {
+        let pet_vaccine_id = target_tr_obj.find('.hidden_id').val()
+        $.ajax({
+            url: "{% url 'pet_shop:ajax-pet-vaccine-delete' %}",
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            datatype: 'json',
+            data: {
+                'id': pet_vaccine_id,
+            },
+            success: function (arg) {
+                target_tr_obj.remove()
+                $(".vaccine-tr").each(function (index) {
+                    $(this).find(".vaccine_count span").text(index + 1)
+                });
+            }
+        });
+    }
+
+    function ajax_vaccine_create() {
+        let name = $("#ipt_new_vaccine").val()
+        if (name == "") {
+            alert("The name cannot empty!")
+            return;
+        }
+        $.ajax({
+            url: "{% url 'pet_shop:ajax-vaccine-create' %}",
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            datatype: 'json',
+            data: {
+                'name': name,
+            },
+            success: function (arg) {
+                $('#vaccine_type').append(new Option(name, arg['id']))
+                $("#ipt_new_vaccine").val("")
+                $('#newVaccineModal').modal('hide');
+            }
+        });
+    }
+
+    function ajax_adopter_control() {
+        let name = $("#ipt_adpoter_name").val()
+        let phone = $("#ipt_adpoter_phone").val()
+        let action = "create"
+        if (name == "" || phone == "") {
+            action = "delete"
+        } else if ($('#update_adopt').text() == "Yes") {
+            action = "update"
+        }
+
+        $.ajax({
+            url: "{% url 'pet_shop:ajax-adopter' %}",
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            datatype: 'json',
+            data: {
+                'pet_id': "{{ pet.id }}",
+                'name': name,
+                'phone': phone,
+                'action': action
+            },
+            success: function (arg) {
+                update_adopt_status_text(arg['status'] + "")
+            }
+        });
+    }
+</script>
+{% else%}
+<script>
+    $(document).ready(function () {
+        update_adopt_status_text("{{ pet.adopt }}")
+    });
+</script>
+{% endif %}
+<script>
+    function update_adopt_status_text(status) {
+        status = status.toLowerCase()
+        let text = "Yes"
+        if (status == "false") {
+            text = "No"
+        }
+        $('#update_adopt').text(text)
+    }
+
+    function ajax_favourite() {
+        $.ajax({
+            url: "{% url 'pet_shop:ajax-favourite' %}",
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            datatype: 'json',
+            data: {
+                'pet_id': "{{ pet.id }}",
+            },
+            success: function (arg) {
+                if (arg['is_already_favourite']) {
+                    //remove the favourite
+                    $("#i_favourite").removeClass("text-danger")
+                } else {
+                    //add to favourite
+                    $("#i_favourite").addClass("text-danger")
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}
+
+
+{% block css %}
+<style>
+    .pet-info {
+            {
+            % comment %
+        }
+
+        font-size: 25px;
+
+            {
+            % endcomment %
+        }
+    }
+
+    .pet-description {
+        overflow-wrap: break-word;
+    }
+</style>
+{% endblock %}
+{% block content %}
+{% for a in vaccine_record %}
+
+{% endfor %}
+
+<div class='pet-info'>
+    <div class='title bg-info text-white p-1 pt-2 pb-2 mb-1'>
+        <h1>
+            Pet Information
+            {% if user.is_authenticated %}
+            <button type="button" class="btn btn-sm" onclick="ajax_favourite();">
+                {% if is_favourite %}
+                <i id="i_favourite" class="fas fa-heart text-danger"></i>
+                {% else %}
+                <i id="i_favourite" class="fas fa-heart"></i>
+                {% endif %}
+            </button>
+            {% endif %}
+            {% if request.user.is_staff %}
+            <button class="btn btn-danger" data-toggle="modal" data-target="#deletePetModal">
+                <i class="fas fa-trash"></i>
+            </button>
+            <button class="btn btn-danger" data-toggle="modal" data-target="#adoptModal">
+                Adopt
+            </button>
+            {% endif %}
+
+        </h1>
+    </div>
+    <div class='row'>
+        <div class='col-6'>
+            <img width="100%" height="100%" src={{ pet.image.url }} alt="Card image cap">
+        </div>
+        <div class='col-6'>
+            <table width="100%">
+                <tr>
+                    <th>Name</th>
+                    <td id='update_name' class='modifiable'>{{ pet.name }}</td>
+                </tr>
+                <tr>
+                    <th>Age</th>
+                    <td>{{ pet.birth | age_calculate }}</td>
+                </tr>
+                <tr>
+                    <th>Birth</th>
+                    <td>{{ pet.birth | date_format_convert }}</td>
+                </tr>
+                <tr>
+                    <th>Gender</th>
+                    <td>{{ pet.gender }}</td>
+                </tr>
+                <tr>
+                    <th>Category</th>
+                    <td>{{ pet.type }}</td>
+                </tr>
+                <tr>
+                    <th>Weight</th>
+                    <td id='update_weight' class='modifiable'>{{ pet.weight }} kg</td>
+                </tr>
+                <tr>
+                    <th>Color</th>
+                    <td>{{ pet.color }}</td>
+                </tr>
+                <tr>
+                    <th>Adopt</th>
+                    <td id='update_adopt'></td>
+                </tr>
+            </table>
+
+        </div>
+    </div>
+    <div class='pet-description mb-3'>
+        <font class='font-weight-bold'>Description</font>
+        <p id='update_description' class='modifiable'>
+            {{ pet.description }}
+        </p>
+    </div>
+    <div class='bg-info text-white p-1'>
+        <font class='font-weight-bold'>Vaccine Record</font>
+    </div>
+
+    <table id="vaccine-table" class="table table-hover">
+
+        {% if vaccine_record|length == 0 and not request.user.is_staff %}
+        No any Record
+        {% else %}
+
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">Type</th>
+                <th scope="col" colspan="2">Additional Description</th>
+                <th scope="col">Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% comment %} template for new tr {% endcomment %}
+            <tr class="vaccine-tr d-none">
+                <th scope="row" class="vaccine_count">
+                    <span></span>
+                    <input type="text" value="" class="hidden_id d-none" />
+                </th>
+                <td class="vaccine_type"></td>
+                <td colspan="2" class="vaccine_description"></td>
+                <td class="vaccine_date">
+                    <span></span>
+                    <button class="vaccine_delete btn btn-danger">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% for vr in vaccine_record %}
+            <tr class="vaccine-tr">
+                <th scope="row" class="vaccine_count">
+                    <span>
+                        {{ forloop.counter }}
+                    </span>
+                    <input type="text" value="{{ vr.id }}" class="hidden_id d-none" />
+                </th>
+                <td class="vaccine_type">{{ vr.type }}</td>
+                <td colspan="2" class="vaccine_description">{{ vr.description }}</td>
+                <td class="vaccine_date">
+                    <span>
+                        {{ vr.date | date_format_convert }}
+                    </span>
+                    {% if request.user.is_staff %}
+                    <button class="vaccine_delete btn btn-danger">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+
+            {% if request.user.is_staff %}
+            {% comment %} end of template {% endcomment %}
+            <tr id="tr_vaccine_create">
+                <th scope="row">N</th>
+                <td class="d-flex flex-row">
+                    <select id="vaccine_type">
+                        {% for vt in vaccine_type %}
+                        <option value={{ vt.id }}>{{ vt.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-sm btn-success" data-toggle="modal" data-target="#newVaccineModal">+</button>
+                </td>
+                <td colspan="2">
+                    <input id="vaccine_description" type="text" class="form-control" maxlength="20" />
+                </td>
+                <td class="d-flex flex-row">
+                    <input id="vaccine_date" type="date" class="form-control" style="max-width:300px;" />
+                    <button id="btn_new_vaccine" class="btn btn-success">+</button>
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+        {% endif %}
+    </table>
+
+
+
+</div>
+
+<div class="modal fade" id="deletePetModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-body pt-3 pb-4">
+                <div class='d-flex justify-content-center pb-3'>
+                    <h1>Delete?</h1>
+                </div>
+                <div class='row justify-content-center '>
+                    <form action="{% url 'pet_shop:pet-delete' pet.id %}" method="post">
+                        {% csrf_token %}
+                        <input type="submit" class='btn btn-danger mr-5' value="Yes">
+                    </form>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="newVaccineModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-body pt-3 pb-4">
+                <div class='d-flex justify-content-center pb-3'>
+                    <h1>New Vaccine?</h1>
+                </div>
+                <div class='row justify-content-center pb-3'>
+                    <input id="ipt_new_vaccine" class="form-control w-50" type="text" maxlength="10"
+                        placeholder="New Vaccine" />
+                </div>
+                <div class='row justify-content-center'>
+                    <button id="btn_vaccine_create" type="button" class="btn btn-danger mr-5"
+                        data-dismiss="modal">Create</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="adoptModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-body pt-3 pb-4">
+                <div class='d-flex justify-content-center pb-3'>
+                    <h1>Adopter Information</h1>
+                </div>
+                <div class='row justify-content-center pb-3'>
+                    <input id="ipt_adpoter_name" class="form-control w-75" type="text" maxlength="50"
+                        value="{{ adopter.name }}" placeholder="Adopter Name" />
+                    <input id="ipt_adpoter_phone" class="form-control w-75" type="text"
+                        onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))"
+                        maxlength="30" value="{{ adopter.phone }}" placeholder="Phone" />
+                </div>
+                <div class='row justify-content-center'>
+                    <button id="btn_adopter_control" type="button" class="btn btn-danger mr-5"
+                        data-dismiss="modal">Submit</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

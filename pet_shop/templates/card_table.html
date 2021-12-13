@@ -1,0 +1,26 @@
+{% load pet_shop_extras %}
+
+{% for pet in pet_list %}
+<a href={% url 'pet_shop:pet-detail' pet.id %} class="custom-card mb-2">
+    <div class="card" style="width: 255px;">
+        <img class="card-img-top" src={{ pet.image.url }} alt="Card image cap">
+        <div class="card-body">
+            <h5 class="card-title">
+                {{ pet.name }}
+            </h5>
+            ({{ pet.type }})
+
+            <p class="card-text card-text-main">
+                {{ pet.description }}
+            </p>
+            <p class="card-text">
+                <small class="text-muted">
+                    {{ pet.update_date | date_format_convert}}
+                </small>
+            </p>
+        </div>
+    </div>
+</a>
+{% empty %}
+<p class='w-100' style="padding:15px;">There are no pet</p>
+{% endfor %}

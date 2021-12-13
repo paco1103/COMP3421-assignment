@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>{% block title %}Title{% endblock %}</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.1/css/bootstrap.min.css"
+        integrity="sha384-VCmXjywReHh4PwowAiWNagnWcLhlEJLA5buUprzK8rxFgeH0kww/aWY76TfkUoSX" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"
+        integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc=" crossorigin="anonymous"></script>
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+        integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous">
+    </script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.1/js/bootstrap.min.js"
+        integrity="sha384-XEerZL0cuoUbHE4nZReLT7nx9gQrQreJekYhJD9WNWhH8nEW+0c5qq7aIo2Wl30J" crossorigin="anonymous">
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+        integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w=="
+        crossorigin="anonymous" />
+    <!-- Add additional CSS in static file -->
+    {% load static %}
+    <script src="{% static 'js/csrftoken.js' %}"></script>
+
+    <script>
+        function ajax_login(obj) {
+            if ($('#username').val() == '') {
+                $('#username').addClass('is-invalid')
+                return
+            }
+            if ($('#password').val() == '') {
+                $('#password').addClass('is-invalid')
+                return
+            }
+            $.ajax({
+                url: "{% url 'pet_shop:login' %}",
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                },
+                mode: 'same-origin',
+                datatype: 'json',
+                data: {
+                    'username': $('#username').val(),
+                    'password': $('#password').val()
+                },
+                success: function (arg) {
+                    if (arg['login'] == 'success') {
+                        window.location.href = "{% url 'pet_shop:index' %}";
+                    } else {
+                        $('#username').addClass('is-invalid')
+                        $('#password').addClass('is-invalid')
+                    }
+                }
+            });
+        }
+    </script>
+
+    {% block js %}
+    <!-- js script-->
+    {% endblock %}
+    {% block css %}
+    {% endblock %}
+</head>
+
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light pt-0 pb-0">
+            <a class="navbar-brand" href={% url 'pet_shop:index' %}>
+                <img src="{% static 'images/logo.jpg' %}" width="50" height="50" alt="">
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item active">
+                        <a class="nav-link" href={% url 'pet_shop:index' %}>Pets <span
+                                class="sr-only">(current)</span></a>
+                    </li>
+                    {% if request.user.is_staff %}
+                    <li class="nav-item active">
+                        <a class="nav-link" href={% url 'pet_shop:pet-create' %}>Create Pet <span
+                                class="sr-only">(current)</span></a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item active">
+                        <a class="nav-link" href={%url 'pet_shop:about' %}>About Us<span
+                                class="sr-only">(current)</span></a>
+                    </li>
+                </ul>
+                {% if user.is_authenticated %}
+                <a href="{% url 'pet_shop:favourite' %}" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-heart text-danger"></i>
+                </a>
+                &nbsp;&nbsp;
+                <button type="button" class="btn btn-outline-danger btn-sm" data-toggle="modal"
+                    data-target="#logoutModal">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-toggle="modal"
+                    data-target="#loginModal">
+                    Login
+                </button>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+    <main class='container'>
+        {% block content %}
+        {% endblock %}
+    </main>
+</body>
+
+<!-- Logout Modal -->
+<div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-body pt-3 pb-4">
+                <div class='d-flex justify-content-center pb-3'>
+                    <h1>Logout?</h1>
+                </div>
+                <div class='row justify-content-center '>
+                    <a href={% url 'pet_shop:logout' %} class='btn btn-danger mr-5'>Yes</a>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Login Modal -->
+<div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-body pt-3 pb-4">
+                <div class='d-flex justify-content-center pb-3'>
+                    <h1>Login</h1>
+                </div>
+                <div class='row justify-content-center'>
+                    <form id="login-form" method="post">
+                        <div class='form-group'>
+                            <input type="text" class='form-control mb-1' name="username" id="username"
+                                placeholder='username' required>
+                            <input type="password" class='form-control mb-1' name="password" value="" id="password"
+                                placeholder='password' required>
+                            <a href={% url 'pet_shop:signup'%}>Sing Up</a><br />
+                            <input type="button" class='btn btn-secondary' onclick="ajax_login(this);" value="Login" />
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</html>
